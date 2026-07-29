@@ -116,17 +116,16 @@ def ask(payload: dict):
         search_results, sources = search_web(latest_question)
         search_context = f"\n\nHere is current information from a live web search:\n{search_results}"
 
-     = {
-        system_message = {
-    "role": "system",
-    "content": (
-        "You are Jartron, a helpful personal AI assistant. "
-        "Answer only what the user actually asks. Keep replies concise and directly relevant to the question. "
-        "Do not mention saved facts about the user unless the question specifically relates to them or they directly ask about themselves. "
-        "Do not bring up unrelated personal details, preferences, or facts as small talk. "
-        f"{memory_context}{search_context}"
-    )
-}
+    system_message = {
+        "role": "system",
+        "content": (
+            "You are Jartron, a helpful personal AI assistant. "
+            "Answer only what the user actually asks. Keep replies concise and directly relevant to the question. "
+            "Do not mention saved facts about the user unless the question specifically relates to them or they directly ask about themselves. "
+            "Do not bring up unrelated personal details, preferences, or facts as small talk. "
+            f"{memory_context}{search_context}"
+        )
+    }
 
     full_messages = [system_message] + messages
     answer = ask_groq(full_messages)
