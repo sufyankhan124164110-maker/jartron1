@@ -1,20 +1,4 @@
-annotated-doc==0.0.5
-anyio==4.14.2
-certifi==2026.7.22
-cffi==2.1.0
-charset-normalizer==3.4.9
-click==8.4.2
-cryptography @ file:///home/builder/.termux-build/python-cryptography/src
-fastapi==0.99.1
-google-genai==2.14.0
-h11==0.16.0
-idna==3.18
-pillow @ file:///home/builder/.termux-build/python-pillow/src
-pycparser==3.0
-pydantic==1.10.26
-python-dotenv==1.2.2
-requests==2.34.2
-starlette==0.27.0
-typing_extensions==4.16.0
-urllib3==2.7.0
-uvicorn==0.51.0
+fastapi
+uvicorn
+python-dotenv
+requests
