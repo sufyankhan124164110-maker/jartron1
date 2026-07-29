@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Jartron</title>
+<style>
+  body {
+    background: #0b0f14;
+    color: #e6f1ff;
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  #chat {
+    width: 100%;
+    max-width: 500px;
+    height: 400px;
+    overflow-y: auto;
+    border: 1px solid #1e2a36;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .msg { margin: 8px 0; }
+  .user { color: #7fd1ff; }
+  .jartron { color: #9dffb0; }
+  #inputRow { display: flex; width: 100%; max-width: 500px; flex-wrap: wrap; gap: 8px; }
+  #question { flex: 1; padding: 10px; border-radius: 8px; border: none; min-width: 120px; }
+  #send { padding: 10px 15px; border-radius: 8px; border: none; background: #2b6cb0; color: white; }
+  #mic { padding: 10px 15px; border-radius: 8px; border: none; background: #b02b4a; color: white; }
+  #testSpeak { padding: 10px 15px; border-radius: 8px; border: none; background: #4a4a4a; color: white; }
+</style>
+</head>
+<body>
+
+<h2>JARTRON</h2>
+<div id="chat"></div>
+<div id="inputRow">
+  <input type="text" id="question" placeholder="Ask Jartron...">
+  <button id="send">Send</button>
+  <button id="mic">🎤</button>
+  <button id="testSpeak">🔊 Test</button>
+</div>
+
+<script>
+const chat = document.getElementById('chat');
+const question = document.getElementById('question');
+const sendBtn = document.getElementById('send');
+const micBtn = document.getElementById('mic');
+const testSpeakBtn = document.getElementById('testSpeak');
+
+const BACKEND_URL = "http://localhost:8000";
+
+let conversationHistory = [];
+
+async function sendMessage() {
+  const q = question.value.trim();
+  if (!q) return;
+
+  chat.innerHTML += `<div class="msg user">You: ${q}</div>`;
+  question.value = "";
+
+  conversationHistory.push({ role: "user", content: q });
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: conversationHistory })
+    });
+    const data = await res.json();
+    const displayText = data.answer || "Sorry, I couldn't get a response right now. Please try again in a moment.";
+
+    conversationHistory.push({ role: "assistant", content: displayText });
+
+    chat.innerHTML += `<div class="msg jartron">Jartron: ${displayText}</div>`;
+    chat.scrollTop = chat.scrollHeight;
+    speak(displayText);
+  } catch (err) {
+    chat.innerHTML += `<div class="msg jartron">Jartron: Something went wrong connecting to the server.</div>`;
+  }
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) {
+    chat.innerHTML += `<div class="msg jartron">Speech not supported on this browser.</div>`;
+    return;
+  }
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voices = speechSynthesis.getVoices();
+  const preferredVoice = voices.find(v => v.lang === "en_US") || voices.find(v => v.lang.startsWith("en"));
+  if (preferredVoice) {
+    utterance.voice = preferredVoice;
+  }
+  utterance.rate = 1;
+  utterance.pitch = 0.6;
+  utterance.onerror = (e) => {
+    chat.innerHTML += `<div class="msg jartron">Speech error: ${e.error}</div>`;
+  };
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utterance);
+}
+
+
+testSpeakBtn.addEventListener('click', () => {
+  speak("Hello, this is a test.");
+});
+
+sendBtn.addEventListener('click', sendMessage);
+question.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') sendMessage();
+});
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = 'en-US';
+
+  micBtn.addEventListener('click', () => {
+    micBtn.textContent = "🔴";
+    recognition.start();
+  });
+
+  recognition.onresult = (event) => {
+    const spokenText = event.results[0][0].transcript;
+    question.value = spokenText;
+    sendMessage();
+  };
+
+  recognition.onerror = (event) => {
+    micBtn.textContent = "🎤";
+    chat.innerHTML += `<div class="msg jartron">Mic error: ${event.error}</div>`;
+  };
+
+  recognition.onend = () => {
+    micBtn.textContent = "🎤";
+  };
+} else {
+  micBtn.disabled = true;
+  chat.innerHTML += `<div class="msg jartron">Voice input not supported on this browser.</div>`;
+}
+speechSynthesis.onvoiceschanged = () => {
+  const voices = speechSynthesis.getVoices();
+  let list = "Available voices (" + voices.length + "):<br>";
+  voices.forEach((v, i) => {
+    list += `${i}: ${v.name} (${v.lang})<br>`;
+  });
+  chat.innerHTML += `<div class="msg jartron">${list}</div>`;
+};
+
+// Trigger it in case voices are already loaded
+if (speechSynthesis.getVoices().length > 0) {
+  speechSynthesis.onvoiceschanged();
+    }
+</script>
+
+</body>
+</html>
