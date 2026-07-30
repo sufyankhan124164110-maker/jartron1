@@ -2,67 +2,497 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Jartron</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>JARTRON</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --bg: #0a0b0d;
+    --glass: rgba(255,255,255,0.045);
+    --glass-border: rgba(255,255,255,0.09);
+    --brass: #D4A94A;
+    --cyan: #35C9F2;
+    --text: #EDEFF2;
+    --dim: #83898f;
+    --dim2: #565b60;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+  }
+
   body {
-    background: #0b0f14;
-    color: #e6f1ff;
-    font-family: sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 20px;
+    font-family: 'Inter', sans-serif;
+    display: flex; flex-direction: column;
+    position: relative;
   }
-  #chat {
-    width: 100%;
-    max-width: 500px;
-    height: 400px;
-    overflow-y: auto;
-    border: 1px solid #1e2a36;
-    border-radius: 10px;
-    padding: 10px;
-    margin-bottom: 10px;
+
+  /* ambient bleed behind everything */
+  #ambient {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 30%, rgba(53,201,242,0.10), transparent 45%),
+      radial-gradient(circle at 50% 30%, rgba(212,169,74,0.06), transparent 60%);
+    transition: opacity 0.6s ease;
+    opacity: 0.6;
   }
-  .msg { margin: 8px 0; }
-  .user { color: #7fd1ff; }
-  .jartron { color: #9dffb0; }
-  #inputRow { display: flex; width: 100%; max-width: 500px; flex-wrap: wrap; gap: 8px; }
-  #question { flex: 1; padding: 10px; border-radius: 8px; border: none; min-width: 120px; }
-  #send { padding: 10px 15px; border-radius: 8px; border: none; background: #2b6cb0; color: white; }
-  #mic { padding: 10px 15px; border-radius: 8px; border: none; background: #b02b4a; color: white; }
-  #testSpeak { padding: 10px 15px; border-radius: 8px; border: none; background: #4a4a4a; color: white; }
+  #ambient.active { opacity: 1; }
+
+  /* ---------- Top bar ---------- */
+  #topBar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px 6px; flex-shrink: 0; position: relative; z-index: 2;
+  }
+  #topBar .brand {
+    display: flex; align-items: center; gap: 7px;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+    font-size: 13px; letter-spacing: 0.06em; color: var(--text);
+  }
+  #led { width: 6px; height: 6px; border-radius: 50%; background: var(--dim2); }
+  #led.on { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+  #led.off { background: #c97a6a; }
+  .rightMeta { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--dim); letter-spacing: 0.05em; }
+
+  /* ---------- Orb ---------- */
+  #orbStage {
+    position: relative; z-index: 2;
+    display: flex; justify-content: center; align-items: center;
+    padding: 18px 0 6px; flex-shrink: 0;
+  }
+
+  #orbOuter {
+    width: 190px; height: 190px; border-radius: 50%;
+    position: relative;
+    transform: scale(1);
+    transition: none;
+  }
+
+  #glassBase {
+    position: absolute; inset: 0; border-radius: 50%;
+    background:
+      radial-gradient(circle at 38% 32%, rgba(255,255,255,0.10), transparent 42%),
+      radial-gradient(circle at 65% 70%, rgba(53,201,242,0.05), transparent 55%),
+      radial-gradient(circle at 50% 50%, #16191c 0%, #0c0e10 72%, #08090a 100%);
+    box-shadow:
+      inset 0 0 24px rgba(0,0,0,0.6),
+      inset 0 1px 1px rgba(255,255,255,0.06);
+  }
+
+  #energyLayer {
+    position: absolute; inset: 0; border-radius: 50%;
+    overflow: hidden;
+  }
+  .blob {
+    position: absolute; border-radius: 50%;
+    filter: blur(16px);
+    mix-blend-mode: screen;
+  }
+  #blobA { width: 130px; height: 130px; background: radial-gradient(circle, rgba(53,201,242,0.55), transparent 70%); top: 10%; left: 5%; animation: driftA 9s ease-in-out infinite; }
+  #blobB { width: 110px; height: 110px; background: radial-gradient(circle, rgba(212,169,74,0.45), transparent 70%); bottom: 5%; right: 8%; animation: driftB 12s ease-in-out infinite; }
+  #blobC { width: 90px; height: 90px; background: radial-gradient(circle, rgba(53,201,242,0.35), transparent 70%); bottom: 15%; left: 20%; animation: driftC 7.5s ease-in-out infinite; }
+
+  @keyframes driftA {
+    0%, 100% { transform: translate(0,0) scale(1); }
+    35% { transform: translate(18px, 10px) scale(1.15); }
+    70% { transform: translate(-8px, 16px) scale(0.9); }
+  }
+  @keyframes driftB {
+    0%, 100% { transform: translate(0,0) scale(1); }
+    40% { transform: translate(-16px, -12px) scale(1.1); }
+    75% { transform: translate(10px, -6px) scale(0.95); }
+  }
+  @keyframes driftC {
+    0%, 100% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(12px, -14px) scale(1.2); }
+  }
+
+  .particle {
+    position: absolute; width: 2.5px; height: 2.5px; border-radius: 50%;
+    background: rgba(255,255,255,0.85);
+    box-shadow: 0 0 4px rgba(53,201,242,0.8);
+  }
+  .p1 { top: 20%; left: 30%; animation: pdrift1 13s ease-in-out infinite; }
+  .p2 { top: 60%; left: 65%; animation: pdrift2 16s ease-in-out infinite; }
+  .p3 { top: 40%; left: 75%; animation: pdrift3 11s ease-in-out infinite; }
+  .p4 { top: 75%; left: 35%; animation: pdrift4 15s ease-in-out infinite; }
+  .p5 { top: 15%; left: 60%; animation: pdrift5 18s ease-in-out infinite; background: rgba(212,169,74,0.9); box-shadow: 0 0 4px rgba(212,169,74,0.8); }
+  .p6 { top: 55%; left: 15%; animation: pdrift6 14s ease-in-out infinite; }
+
+  @keyframes pdrift1 { 0%,100% { transform: translate(0,0); opacity: 0.3; } 50% { transform: translate(14px,-18px); opacity: 0.9; } }
+  @keyframes pdrift2 { 0%,100% { transform: translate(0,0); opacity: 0.4; } 50% { transform: translate(-16px,12px); opacity: 0.85; } }
+  @keyframes pdrift3 { 0%,100% { transform: translate(0,0); opacity: 0.25; } 50% { transform: translate(-10px,-16px); opacity: 0.8; } }
+  @keyframes pdrift4 { 0%,100% { transform: translate(0,0); opacity: 0.35; } 50% { transform: translate(12px,10px); opacity: 0.9; } }
+  @keyframes pdrift5 { 0%,100% { transform: translate(0,0); opacity: 0.3; } 50% { transform: translate(-14px,14px); opacity: 0.85; } }
+  @keyframes pdrift6 { 0%,100% { transform: translate(0,0); opacity: 0.3; } 50% { transform: translate(10px,-12px); opacity: 0.8; } }
+
+  #glassHighlight {
+    position: absolute; width: 70px; height: 44px; border-radius: 50%;
+    top: 14%; left: 18%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.55), transparent 72%);
+    filter: blur(2px);
+    mix-blend-mode: screen;
+    transform: rotate(-18deg);
+  }
+  #glassHighlight2 {
+    position: absolute; width: 30px; height: 18px; border-radius: 50%;
+    bottom: 20%; right: 22%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.18), transparent 75%);
+    filter: blur(2px);
+    mix-blend-mode: screen;
+  }
+
+  #glassRim {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .ripple {
+    position: absolute; top: 0; left: 0; width: 190px; height: 190px;
+    border-radius: 50%; border: 1px solid rgba(53,201,242,0.5);
+    pointer-events: none;
+    animation: rippleOut 0.9s ease-out forwards;
+  }
+  @keyframes rippleOut {
+    from { transform: scale(1); opacity: 0.55; }
+    to { transform: scale(1.5); opacity: 0; }
+  }
+
+  #stateWrap { text-align: center; padding: 12px 0 4px; position: relative; z-index: 2; }
+  #stateLabel {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px;
+    letter-spacing: 0.1em; color: var(--text);
+  }
+  #stateSub { font-size: 11px; color: var(--dim); margin-top: 3px; }
+
+  /* ---------- Waveform ---------- */
+  #waveform {
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    height: 20px; margin: 4px 0 2px; position: relative; z-index: 2;
+  }
+  #waveform .bar {
+    width: 3px; height: 4px; border-radius: 2px;
+    background: linear-gradient(180deg, var(--cyan), var(--brass));
+    opacity: 0.55;
+  }
+
+  /* ---------- Glass chips ---------- */
+  #chipRow {
+    display: flex; gap: 8px; padding: 10px 16px 0; position: relative; z-index: 2; flex-shrink: 0;
+  }
+  .chip {
+    flex: 1; background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 14px; padding: 8px 10px; backdrop-filter: blur(16px);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .chip .k { font-size: 9px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
+  .chip .v { font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; color: var(--cyan); }
+
+  /* ---------- Conversation panel ---------- */
+  #logPanel {
+    flex: 1; margin: 10px 16px 0;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 18px; backdrop-filter: blur(16px);
+    display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+    position: relative; z-index: 2;
+  }
+  #logHead {
+    padding: 10px 14px; font-size: 10px; letter-spacing: 0.08em; color: var(--dim);
+    text-transform: uppercase; flex-shrink: 0;
+  }
+  #log { flex: 1; overflow-y: auto; padding: 0 14px 12px; -webkit-overflow-scrolling: touch; }
+  .entry { margin-bottom: 12px; }
+  .entry .meta { display: flex; gap: 6px; align-items: center; font-size: 10px; color: var(--dim2); margin-bottom: 3px; font-family: 'IBM Plex Mono', monospace; }
+  .entry.jartron .meta { color: var(--cyan); }
+  .entry .body { font-size: 13.5px; line-height: 1.55; color: var(--text); }
+  .entry.user .body { color: var(--dim); }
+  .cursor {
+    display: inline-block; width: 5px; height: 12px; background: var(--cyan);
+    vertical-align: -2px; animation: blink 0.9s step-end infinite; border-radius: 1px;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .sourceLine { font-size: 10px; color: var(--dim2); margin-top: 3px; }
+  .sourceLine a { color: var(--brass); text-decoration: none; }
+
+  /* ---------- Icon toolbar ---------- */
+  #toolbar { display: flex; justify-content: center; gap: 10px; padding: 10px 0 2px; position: relative; z-index: 2; flex-shrink: 0; }
+  .iconChip {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center; color: var(--dim);
+    backdrop-filter: blur(12px);
+  }
+  .iconChip svg { width: 14px; height: 14px; }
+  .iconChip.active { background: var(--cyan); color: #08090a; border-color: var(--cyan); }
+  .iconChip:active { transform: scale(0.9); }
+
+  /* ---------- Console ---------- */
+  #console { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); flex-shrink: 0; position: relative; z-index: 2; }
+  #consoleInner { display: flex; align-items: center; gap: 8px; }
+  #jack {
+    flex: 1; display: flex; align-items: center;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 22px; padding: 0 16px; backdrop-filter: blur(16px);
+    transition: border-color 0.2s ease;
+  }
+  #jack.focus { border-color: rgba(53,201,242,0.5); }
+  #question {
+    flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+    color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; padding: 12px 0;
+  }
+  #question::placeholder { color: var(--dim); }
+
+  .roundBtn {
+    width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center; color: var(--dim);
+    backdrop-filter: blur(16px); transition: transform 0.12s ease;
+  }
+  .roundBtn svg { width: 18px; height: 18px; }
+  .roundBtn:active { transform: scale(0.92); }
+  #mic.on { background: var(--cyan); color: #08090a; border-color: var(--cyan); }
+  #send { color: var(--brass); border-color: rgba(212,169,74,0.35); }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--glass-border); }
 </style>
 </head>
 <body>
 
-<h2>JARTRON</h2>
-<div id="chat"></div>
-<div id="inputRow">
-  <input type="text" id="question" placeholder="Ask Jartron...">
-  <button id="send">Send</button>
-  <button id="mic">🎤</button>
-  <button id="testSpeak">🔊 Test</button>
+<div id="ambient"></div>
+
+<div id="topBar">
+  <div class="brand"><span id="led"></span>JARTRON</div>
+  <div class="rightMeta"><span id="linkText">LINK &mdash;</span> &nbsp; <span id="clock">00:00:00</span></div>
+</div>
+
+<div id="orbStage">
+  <div id="orbOuter">
+    <div id="glassBase"></div>
+    <div id="energyLayer">
+      <div class="blob" id="blobA"></div>
+      <div class="blob" id="blobB"></div>
+      <div class="blob" id="blobC"></div>
+      <div class="particle p1"></div>
+      <div class="particle p2"></div>
+      <div class="particle p3"></div>
+      <div class="particle p4"></div>
+      <div class="particle p5"></div>
+      <div class="particle p6"></div>
+    </div>
+    <div id="glassHighlight"></div>
+    <div id="glassHighlight2"></div>
+    <div id="glassRim"></div>
+  </div>
+</div>
+
+<div id="stateWrap">
+  <div id="stateLabel">Standby</div>
+  <div id="stateSub">System idle</div>
+</div>
+
+<div id="waveform">
+  <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+</div>
+
+<div id="chipRow">
+  <div class="chip"><span class="k">Memory</span><span class="v" id="statMemory">&mdash;</span></div>
+  <div class="chip"><span class="k">Source</span><span class="v" id="statSearch">None</span></div>
+  <div class="chip"><span class="k">Turns</span><span class="v" id="statTurns">0</span></div>
+</div>
+
+<div id="logPanel">
+  <div id="logHead">Conversation</div>
+  <div id="log"></div>
+</div>
+
+<div id="toolbar">
+  <button class="iconChip" id="memBtn" title="Memory">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="4" rx="1"/><rect x="4" y="10" width="16" height="4" rx="1"/><rect x="4" y="16" width="10" height="4" rx="1"/></svg>
+  </button>
+  <button class="iconChip" id="muteBtn" title="Mute">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9v6h4l5 5V4L8 9H4z"/><line x1="16" y1="9" x2="21" y2="14"/><line x1="21" y1="9" x2="16" y2="14"/></svg>
+  </button>
+  <button class="iconChip" id="clearBtn" title="Clear">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 6h14M9 6V4h6v2M7 6l1 14h8l1-14"/></svg>
+  </button>
+</div>
+
+<div id="console">
+  <div id="consoleInner">
+    <div id="jack">
+      <input type="text" id="question" placeholder="Ask Jartron...">
+    </div>
+    <button class="roundBtn" id="mic" title="Voice input">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
+    </button>
+    <button class="roundBtn" id="send" title="Send">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12h16M13 5l7 7-7 7"/></svg>
+    </button>
+  </div>
 </div>
 
 <script>
-const chat = document.getElementById('chat');
-const question = document.getElementById('question');
-const sendBtn = document.getElementById('send');
-const micBtn = document.getElementById('mic');
-const testSpeakBtn = document.getElementById('testSpeak');
-
 const BACKEND_URL = "https://jartron1.onrender.com";
 
-let conversationHistory = [];
+const log = document.getElementById('log');
+const question = document.getElementById('question');
+const jack = document.getElementById('jack');
+const sendBtn = document.getElementById('send');
+const micBtn = document.getElementById('mic');
+const muteBtn = document.getElementById('muteBtn');
+const memBtn = document.getElementById('memBtn');
+const clearBtn = document.getElementById('clearBtn');
+const clock = document.getElementById('clock');
+const led = document.getElementById('led');
+const linkText = document.getElementById('linkText');
+const stateLabel = document.getElementById('stateLabel');
+const stateSub = document.getElementById('stateSub');
+const orbOuter = document.getElementById('orbOuter');
+const orbStage = document.getElementById('orbStage');
+const ambient = document.getElementById('ambient');
+const statMemory = document.getElementById('statMemory');
+const statSearch = document.getElementById('statSearch');
+const statTurns = document.getElementById('statTurns');
+const bars = document.querySelectorAll('#waveform .bar');
 
+let conversationHistory = [];
+let turns = 0;
+let muted = false;
+let mode = 'standby';
+
+/* ---------- Clock ---------- */
+setInterval(() => clock.textContent = new Date().toTimeString().slice(0, 8), 1000);
+clock.textContent = new Date().toTimeString().slice(0, 8);
+
+/* ---------- Real link + memory check ---------- */
+async function checkLink() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/`);
+    if (res.ok) { led.className = 'on'; linkText.textContent = 'LINK OK'; }
+    else throw new Error();
+  } catch { led.className = 'off'; linkText.textContent = 'LINK FAIL'; }
+}
+async function checkMemory() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/memories`);
+    const data = await res.json();
+    statMemory.textContent = (data.facts || []).length;
+  } catch { statMemory.textContent = '?'; }
+}
+checkLink();
+checkMemory();
+
+/* ---------- State + energy engine ---------- */
+const STATES = {
+  standby: { label: 'Standby', sub: 'System idle' },
+  listening: { label: 'Listening', sub: 'Capturing your voice' },
+  thinking: { label: 'Thinking', sub: 'Reasoning' },
+  speaking: { label: 'Speaking', sub: 'Responding' }
+};
+
+let energy = 0.12, targetEnergy = 0.12, t = 0, boost = 0;
+
+function setMode(newMode) {
+  mode = newMode;
+  stateLabel.textContent = STATES[mode].label;
+  stateSub.textContent = STATES[mode].sub;
+  ambient.classList.toggle('active', mode !== 'standby');
+}
+
+function energyFrame() {
+  t += 0.016;
+  boost *= 0.9;
+
+  if (mode === 'standby') {
+    targetEnergy = 0.12 + Math.sin(t * 0.5) * 0.03;
+  } else if (mode === 'listening') {
+    targetEnergy = 0.4 + Math.sin(t * 1.6) * 0.15 + Math.sin(t * 3.1) * 0.08;
+  } else if (mode === 'thinking') {
+    targetEnergy = 0.3 + Math.sin(t * 0.9) * 0.09;
+  } else if (mode === 'speaking') {
+    targetEnergy = 0.5 + Math.sin(t * 2.4) * 0.18 + Math.sin(t * 4.7) * 0.1 + boost;
+  }
+  targetEnergy = Math.max(0, Math.min(1, targetEnergy));
+  energy += (targetEnergy - energy) * 0.08;
+
+  const scale = 1 + energy * 0.16;
+  orbOuter.style.transform = `scale(${scale.toFixed(4)})`;
+  orbOuter.style.filter = `drop-shadow(0 0 ${18 + energy * 40}px rgba(53,201,242,${0.15 + energy * 0.35}))`;
+
+  bars.forEach((bar, i) => {
+    const h = 4 + Math.abs(Math.sin(t * (1.5 + i * 0.4) + i)) * (6 + energy * 22);
+    bar.style.height = h.toFixed(1) + 'px';
+    bar.style.opacity = (0.35 + energy * 0.6).toFixed(2);
+  });
+
+  requestAnimationFrame(energyFrame);
+}
+requestAnimationFrame(energyFrame);
+
+/* ---------- Ripples ---------- */
+let lastRipple = 0;
+function spawnRipple() {
+  const now = performance.now();
+  if (now - lastRipple < 260) return;
+  lastRipple = now;
+  const r = document.createElement('div');
+  r.className = 'ripple';
+  orbStage.appendChild(r);
+  r.addEventListener('animationend', () => r.remove());
+}
+
+/* ---------- Log ---------- */
+function addEntry(role, text, sources, animate) {
+  const time = new Date().toTimeString().slice(0, 8);
+  const tag = role === 'user' ? 'You' : 'Jartron';
+  const div = document.createElement('div');
+  div.className = `entry ${role}`;
+  div.innerHTML = `<div class="meta">${tag} &middot; ${time}</div><div class="body"></div>`;
+  log.appendChild(div);
+  const bodyEl = div.querySelector('.body');
+
+  if (sources && sources.length) {
+    const srcDiv = document.createElement('div');
+    srcDiv.className = 'sourceLine';
+    srcDiv.innerHTML = sources.map(s => {
+      try { return `<a href="${s}" target="_blank">${new URL(s).hostname}</a>`; } catch { return ''; }
+    }).join('  &middot;  ');
+    div.appendChild(srcDiv);
+  }
+
+  log.scrollTop = log.scrollHeight;
+
+  if (!animate) { bodyEl.textContent = text; return; }
+
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor';
+  bodyEl.after(cursor);
+  const duration = Math.min(800, Math.max(180, text.length * 9));
+  const delay = duration / text.length;
+  let i = 0;
+  const timer = setInterval(() => {
+    bodyEl.textContent = text.slice(0, i);
+    log.scrollTop = log.scrollHeight;
+    i++;
+    if (i > text.length) { clearInterval(timer); cursor.remove(); }
+  }, Math.max(6, delay));
+}
+
+addEntry('jartron', 'Session initialized. Standing by.', null, false);
+
+/* ---------- Send / receive ---------- */
 async function sendMessage() {
   const q = question.value.trim();
   if (!q) return;
 
-  chat.innerHTML += `<div class="msg user">You: ${q}</div>`;
+  addEntry('user', q, null, false);
   question.value = "";
-
   conversationHistory.push({ role: "user", content: q });
+  setMode('thinking');
 
   try {
     const res = await fetch(`${BACKEND_URL}/ask`, {
@@ -70,90 +500,4 @@ async function sendMessage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: conversationHistory })
     });
-    const data = await res.json();
-    const displayText = data.answer || "Sorry, I couldn't get a response right now. Please try again in a moment.";
-
-    conversationHistory.push({ role: "assistant", content: displayText });
-
-    chat.innerHTML += `<div class="msg jartron">Jartron: ${displayText}</div>`;
-    chat.scrollTop = chat.scrollHeight;
-    speak(displayText);
-  } catch (err) {
-    chat.innerHTML += `<div class="msg jartron">Jartron: Something went wrong connecting to the server.</div>`;
-  }
-}
-
-function speak(text) {
-  if (!('speechSynthesis' in window)) {
-    chat.innerHTML += `<div class="msg jartron">Speech not supported on this browser.</div>`;
-    return;
-  }
-  const utterance = new SpeechSynthesisUtterance(text);
-  const voices = speechSynthesis.getVoices();
-  const preferredVoice = voices.find(v => v.lang === "en_US") || voices.find(v => v.lang.startsWith("en"));
-  if (preferredVoice) {
-    utterance.voice = preferredVoice;
-  }
-  utterance.rate = 1;
-  utterance.pitch = 0.6;
-  utterance.onerror = (e) => {
-    chat.innerHTML += `<div class="msg jartron">Speech error: ${e.error}</div>`;
-  };
-  speechSynthesis.cancel();
-  speechSynthesis.speak(utterance);
-}
-
-
-testSpeakBtn.addEventListener('click', () => {
-  speak("Hello, this is a test.");
-});
-
-sendBtn.addEventListener('click', sendMessage);
-question.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') sendMessage();
-});
-
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  recognition.lang = 'en-US';
-
-  micBtn.addEventListener('click', () => {
-    micBtn.textContent = "🔴";
-    recognition.start();
-  });
-
-  recognition.onresult = (event) => {
-    const spokenText = event.results[0][0].transcript;
-    question.value = spokenText;
-    sendMessage();
-  };
-
-  recognition.onerror = (event) => {
-    micBtn.textContent = "🎤";
-    chat.innerHTML += `<div class="msg jartron">Mic error: ${event.error}</div>`;
-  };
-
-  recognition.onend = () => {
-    micBtn.textContent = "🎤";
-  };
-} else {
-  micBtn.disabled = true;
-  chat.innerHTML += `<div class="msg jartron">Voice input not supported on this browser.</div>`;
-}
-speechSynthesis.onvoiceschanged = () => {
-  const voices = speechSynthesis.getVoices();
-  let list = "Available voices (" + voices.length + "):<br>";
-  voices.forEach((v, i) => {
-    list += `${i}: ${v.name} (${v.lang})<br>`;
-  });
-  chat.innerHTML += `<div class="msg jartron">${list}</div>`;
-};
-
-// Trigger it in case voices are already loaded
-if (speechSynthesis.getVoices().length > 0) {
-  speechSynthesis.onvoiceschanged();
-    }
-</script>
-
-</body>
-</html>
+    const data = await res.j
