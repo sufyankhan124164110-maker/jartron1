@@ -500,4 +500,88 @@ async function sendMessage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: conversationHistory })
     });
-    const data = await res.j
+    const data = await res.json();
+    const displayText = data.answer || "No response received.";
+
+    conversationHistory.push({ role: "assistant", content: displayText });
+    turns++;
+    statTurns.textContent = turns;
+    statSearch.textContent = (data.sources && data.sources.length) ? 'Web' : 'Model';
+
+    setMode('speaking');
+    addEntry('jartron', displayText, data.sources, true);
+    if (!muted) speak(displayText); else setMode('standby');
+  } catch (err) {
+    addEntry('jartron', 'Connection failed. Backend unreachable.', null, false);
+    setMode('standby');
+  }
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) { setMode('standby'); return; }
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voices = speechSynthesis.getVoices();
+  const preferred = voices.find(v => v.lang.startsWith("en"));
+  if (preferred) utterance.voice = preferred;
+  utterance.pitch = 0.75;
+  utterance.rate = 1;
+  utterance.onboundary = () => { boost = 0.3; spawnRipple(); };
+  utterance.onend = () => setMode('standby');
+  utterance.onerror = () => setMode('standby');
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utterance);
+}
+
+sendBtn.addEventListener('click', sendMessage);
+question.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+question.addEventListener('focus', () => jack.classList.add('focus'));
+question.addEventListener('blur', () => jack.classList.remove('focus'));
+
+/* ---------- Voice input ---------- */
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = 'en-US';
+  micBtn.addEventListener('click', () => {
+    micBtn.classList.add('on');
+    setMode('listening');
+    spawnRipple();
+    recognition.start();
+  });
+  recognition.onresult = (event) => { question.value = event.results[0][0].transcript; sendMessage(); };
+  recognition.onerror = () => { micBtn.classList.remove('on'); setMode('standby'); };
+  recognition.onend = () => micBtn.classList.remove('on');
+} else {
+  micBtn.disabled = true;
+  micBtn.style.opacity = 0.3;
+}
+
+/* ---------- Toolbar ---------- */
+memBtn.addEventListener('click', async () => {
+  try {
+    const res = await fetch(`${BACKEND_URL}/memories`);
+    const data = await res.json();
+    const facts = data.facts || [];
+    addEntry('jartron', facts.length ? facts.join(' | ') : 'No stored facts.', null, false);
+  } catch {
+    addEntry('jartron', 'Could not reach memory store.', null, false);
+  }
+});
+
+muteBtn.addEventListener('click', () => {
+  muted = !muted;
+  muteBtn.classList.toggle('active', muted);
+  if (muted) speechSynthesis.cancel();
+});
+
+clearBtn.addEventListener('click', () => {
+  log.innerHTML = '';
+  conversationHistory = [];
+  turns = 0;
+  statTurns.textContent = 0;
+  statSearch.textContent = 'None';
+  addEntry('jartron', 'Log cleared. Session reset.', null, false);
+});
+</script>
+
+</body>
+</html>
